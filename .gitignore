@@ -1,0 +1,4 @@
+.env
+data/raw_pdfs/
+data/storage/
+.DS_Store
