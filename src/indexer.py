@@ -1,5 +1,7 @@
 import argparse
+import json
 from pathlib import Path
+from typing import Dict
 
 from llama_index.core import Settings, SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.core.node_parser import SentenceWindowNodeParser
@@ -9,15 +11,24 @@ from llama_index.readers.file import PyMuPDFReader
 DEFAULT_EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 
 
+def _load_metadata(path: Path) -> Dict[str, Dict]:
+    if not path.exists():
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def build_index(data_dir: Path) -> Path:
     pdf_dir = data_dir / "raw_pdfs"
     storage_dir = data_dir / "storage"
     storage_dir.mkdir(parents=True, exist_ok=True)
+    metadata_path = data_dir / "metadata.json"
 
     if not pdf_dir.exists():
         raise FileNotFoundError(f"PDF folder not found: {pdf_dir}")
 
     Settings.embed_model = HuggingFaceEmbedding(model_name=DEFAULT_EMBED_MODEL)
+    metadata = _load_metadata(metadata_path)
 
     node_parser = SentenceWindowNodeParser.from_defaults(
         window_size=3,
@@ -33,6 +44,11 @@ def build_index(data_dir: Path) -> Path:
 
     if not documents:
         raise RuntimeError("No documents loaded. Add PDFs to data/raw_pdfs first.")
+
+    for doc in documents:
+        file_name = doc.metadata.get("file_name")
+        if file_name and file_name in metadata:
+            doc.metadata.update(metadata[file_name])
 
     nodes = node_parser.get_nodes_from_documents(documents)
     index = VectorStoreIndex(nodes)
