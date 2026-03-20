@@ -73,7 +73,7 @@ def download_papers(query: str, limit: int, data_dir: Path) -> Path:
         Works()
         .search(query)
         .filter(is_oa=True)
-        .sort("cited_by_count:desc")
+        .sort(cited_by_count="desc")
         .get(page=1, per_page=limit)
     )
 
