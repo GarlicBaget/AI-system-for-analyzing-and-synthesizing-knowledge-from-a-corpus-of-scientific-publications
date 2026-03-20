@@ -5,6 +5,7 @@ from typing import Dict, Iterable, List, Optional
 
 from llama_index.core import Settings
 from llama_index.core.agent import ReActAgent
+from llama_index.core.chat_engine.types import AgentChatResponse
 from llama_index.core.indices.vector_store.retrievers.retriever import (
     VectorIndexRetriever,
 )
@@ -79,6 +80,41 @@ def build_query_engine(
     )
 
 
+class MultiAgentOrchestrator:
+    def __init__(self, retriever_agent: ReActAgent, synthesis_agent: ReActAgent):
+        self.retriever_agent = retriever_agent
+        self.synthesis_agent = synthesis_agent
+
+    def chat(self, message: str) -> AgentChatResponse:
+        retrieval_prompt = (
+            "You are a Retrieval Agent. Find the most relevant evidence for the question. "
+            "Return a concise bullet list of facts. Question:\n"
+            f"{message}"
+        )
+        retrieval_response = self.retriever_agent.chat(retrieval_prompt)
+
+        synthesis_prompt = (
+            "You are a Synthesis Agent. Use the evidence below to answer the question. "
+            "If evidence is insufficient, say so.\n\n"
+            f"Evidence:\n{retrieval_response.response}\n\n"
+            f"Question: {message}\n\n"
+            "Answer:"
+        )
+        synthesis_response = self.synthesis_agent.chat(synthesis_prompt)
+
+        source_nodes = []
+        if getattr(retrieval_response, "source_nodes", None):
+            source_nodes.extend(retrieval_response.source_nodes)
+        if getattr(synthesis_response, "source_nodes", None):
+            source_nodes.extend(synthesis_response.source_nodes)
+
+        return AgentChatResponse(
+            response=synthesis_response.response,
+            source_nodes=source_nodes,
+            metadata={"evidence": retrieval_response.response},
+        )
+
+
 def build_agent(
     index,
     similarity_top_k: int,
@@ -118,6 +154,49 @@ def build_agent(
         ),
     ]
     return ReActAgent.from_tools(tools=tools, llm=Settings.llm, verbose=False)
+
+
+def build_multi_agent(
+    index,
+    similarity_top_k: int,
+    fusion_queries: int,
+    fusion_mode: str,
+    metadata_filters: Optional[MetadataFilters],
+) -> MultiAgentOrchestrator:
+    base_engine = build_query_engine(
+        index=index,
+        strategy="baseline",
+        similarity_top_k=similarity_top_k,
+        fusion_queries=fusion_queries,
+        fusion_mode=fusion_mode,
+        rerank_top_n=similarity_top_k,
+        metadata_filters=metadata_filters,
+    )
+    fusion_engine = build_query_engine(
+        index=index,
+        strategy="fusion",
+        similarity_top_k=similarity_top_k,
+        fusion_queries=fusion_queries,
+        fusion_mode=fusion_mode,
+        rerank_top_n=similarity_top_k,
+        metadata_filters=metadata_filters,
+    )
+
+    tools = [
+        QueryEngineTool.from_defaults(
+            name="vector_search",
+            description="Vector search over the selected papers.",
+            query_engine=base_engine,
+        ),
+        QueryEngineTool.from_defaults(
+            name="fusion_search",
+            description="Multi-query fusion retrieval for harder questions.",
+            query_engine=fusion_engine,
+        ),
+    ]
+    retriever_agent = ReActAgent.from_tools(tools=tools, llm=Settings.llm, verbose=False)
+    synthesis_agent = ReActAgent.from_tools(tools=tools, llm=Settings.llm, verbose=False)
+    return MultiAgentOrchestrator(retriever_agent, synthesis_agent)
 
 
 def config_from_inputs(

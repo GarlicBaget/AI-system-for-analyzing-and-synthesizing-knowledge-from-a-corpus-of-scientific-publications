@@ -12,6 +12,7 @@ from llama_index.llms.ollama import Ollama
 from rag_strategies import (
     build_agent,
     build_metadata_filters,
+    build_multi_agent,
     build_query_engine,
     config_from_inputs,
     config_to_dict,
@@ -56,12 +57,13 @@ def main() -> None:
     st.sidebar.header("Retrieval settings")
     strategy = st.sidebar.selectbox(
         "RAG strategy",
-        options=["baseline", "fusion", "rerank", "agent"],
+        options=["baseline", "fusion", "rerank", "agent", "multi_agent"],
         format_func=lambda v: {
             "baseline": "Baseline vector",
             "fusion": "Query fusion",
             "rerank": "LLM rerank",
             "agent": "Agent mode",
+            "multi_agent": "Multi-agent mode",
         }.get(v, v),
     )
     similarity_top_k = st.sidebar.slider("Top-K", min_value=1, max_value=10, value=3)
@@ -113,6 +115,17 @@ def main() -> None:
                 metadata_filters=metadata_filters,
             )
             st.session_state.query_engine = None
+            st.session_state.multi_agent = None
+        elif strategy == "multi_agent":
+            st.session_state.multi_agent = build_multi_agent(
+                index=st.session_state.index,
+                similarity_top_k=similarity_top_k,
+                fusion_queries=fusion_queries,
+                fusion_mode=fusion_mode,
+                metadata_filters=metadata_filters,
+            )
+            st.session_state.query_engine = None
+            st.session_state.agent = None
         else:
             st.session_state.query_engine = build_query_engine(
                 index=st.session_state.index,
@@ -124,6 +137,7 @@ def main() -> None:
                 metadata_filters=metadata_filters,
             )
             st.session_state.agent = None
+            st.session_state.multi_agent = None
         st.session_state.query_config = config_dict
 
     if "messages" not in st.session_state:
@@ -146,6 +160,8 @@ def main() -> None:
             try:
                 if strategy == "agent":
                     response = st.session_state.agent.chat(prompt)
+                elif strategy == "multi_agent":
+                    response = st.session_state.multi_agent.chat(prompt)
                 else:
                     response = st.session_state.query_engine.query(prompt)
             except Exception as exc:

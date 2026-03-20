@@ -14,6 +14,7 @@
 - **Query Fusion**: multi-query retrieval с объединением результатов (RRF/relative/simple).
 - **LLM Rerank**: переранжирование контекста с помощью LLM.
 - **Agent mode**: ReAct-агент с инструментами `vector_search` и `fusion_search`.
+- **Multi-agent mode**: два ReAct-агента (retrieval и synthesis) работают последовательно.
 
 ### Метрики (оценка качества)
 - **Semantic Recall**: близость ground truth к извлеченному контексту (cosine similarity).
