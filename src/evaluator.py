@@ -4,8 +4,9 @@ from typing import Iterable, List
 
 import numpy as np
 from llama_index.core import Settings, StorageContext, load_index_from_storage
+from llama_index.core.callbacks import CallbackManager
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.llms.ollama import Ollama
+from llm_utils import SafeOllama
 
 from rag_strategies import build_metadata_filters, build_query_engine
 
@@ -50,7 +51,9 @@ def run_evaluation(
     selected_files: Iterable[str],
 ) -> None:
     Settings.embed_model = HuggingFaceEmbedding(model_name=DEFAULT_EMBED_MODEL)
-    Settings.llm = Ollama(model=DEFAULT_OLLAMA_MODEL, request_timeout=120.0)
+    Settings.callback_manager = CallbackManager([])
+    Settings.llm = SafeOllama(model=DEFAULT_OLLAMA_MODEL, request_timeout=120.0)
+    Settings.llm.callback_manager = Settings.callback_manager
 
     storage_dir = data_dir / "storage"
     sc = StorageContext.from_defaults(persist_dir=str(storage_dir))

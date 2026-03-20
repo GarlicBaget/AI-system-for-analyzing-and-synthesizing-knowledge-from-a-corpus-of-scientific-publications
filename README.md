@@ -8,22 +8,21 @@
 - **LLM:** локальный запуск через Ollama (по умолчанию `qwen2.5:0.5b`).
 - **Интерфейс:** Streamlit.
 
-## Новые изменения
-### RAG-подходы
+## Подходы RAG
 - **Baseline vector**: стандартный `VectorIndexRetriever`.
 - **Query Fusion**: multi-query retrieval с объединением результатов (RRF/relative/simple).
 - **LLM Rerank**: переранжирование контекста с помощью LLM.
 - **Agent mode**: ReAct-агент с инструментами `vector_search` и `fusion_search`.
 - **Multi-agent mode**: два ReAct-агента (retrieval и synthesis) работают последовательно.
 
-### Метрики (оценка качества)
+## Метрики (оценка качества)
 - **Semantic Recall**: близость ground truth к извлеченному контексту (cosine similarity).
 - **BERTScore (F1)**: семантическое совпадение ответа с эталоном.
 - **Answer relevancy**: близость вопроса и ответа (эмбеддинги).
 - **Answer-context similarity**: близость ответа и контекста (эмбеддинги).
 
-### Выбор статей
-В интерфейсе добавлен фильтр статей по метаданным (title → file_name). Фильтрация применяется ко всем стратегиям.
+## Выбор статей
+В интерфейсе есть фильтр статей по метаданным (title → file_name). Фильтрация применяется ко всем стратегиям.
 
 ## Запуск
 1. Установите зависимости: `pip install -r requirements.txt`
@@ -44,8 +43,13 @@ python src/evaluator.py \
   --files paper_1.pdf paper_3.pdf
 ```
 
+## Примечания
+- Индексация может занимать время (парсинг PDF + эмбеддинги).
+- Для стабильной работы с Ollama используется `SafeOllama`, чтобы не зависеть от поля `usage` в ответах.
+
 ## Файлы
 - `src/app.py` — Streamlit UI, выбор стратегии и фильтрация статей.
 - `src/indexer.py` — индексация + подмешивание метаданных в узлы.
 - `src/evaluator.py` — оценка качества по метрикам.
 - `src/rag_strategies.py` — фабрики для query engine и agent.
+- `src/llm_utils.py` — SafeOllama для совместимости с актуальным Ollama.

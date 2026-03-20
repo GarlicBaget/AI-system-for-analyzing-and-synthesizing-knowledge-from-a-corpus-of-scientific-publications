@@ -5,6 +5,7 @@ from typing import Dict, Iterable, List, Optional
 
 from llama_index.core import Settings
 from llama_index.core.agent import ReActAgent
+from llama_index.core.callbacks import CallbackManager
 from llama_index.core.chat_engine.types import AgentChatResponse
 from llama_index.core.indices.vector_store.retrievers.retriever import (
     VectorIndexRetriever,
@@ -77,6 +78,7 @@ def build_query_engine(
     return RetrieverQueryEngine.from_args(
         retriever=retriever,
         node_postprocessors=postprocessors,
+        callback_manager=CallbackManager([]),
     )
 
 
